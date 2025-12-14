@@ -3,7 +3,7 @@ import { Pool } from "pg";
 import dotenv from "dotenv";
 import path from "path";
 
-dotenv.config({path: path.join(process.cwd(), '.env')});
+dotenv.config({ path: path.join(process.cwd(), ".env") });
 
 const app = express();
 const port = 5000;
@@ -51,12 +51,89 @@ app.get("/", (req: Request, res: Response) => {
   res.send("Hello World! Next Dev");
 });
 
-app.post("/data", (req: Request, res: Response) => {
+app.post("/data", async (req: Request, res: Response) => {
   //   res.json({ message: 'Data received successfully' });
-  console.log(req.body);
+  // console.log(req.body);
+  const { name, email } = req.body;
+
+  try {
+    const result = await pool.query(
+      "INSERT INTO users (name, email) VALUES ($1, $2) RETURNING *",
+      [name, email]
+    );
+    // console.log("Inserted data:", result);
+    // console.log("Inserted data:", result.rows[0]);
+
+    // res.send({ message: "Data received successfully", data: result.rows[0] });
+  } catch (error) {
+    // console.error("Error inserting data:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+
   res
     .status(200)
     .json({ message: "Data received successfully", data: req.body });
+});
+
+app.get("/data", async (req: Request, res: Response) => {
+  try {
+    const result = await pool.query("SELECT * FROM users");
+    res.status(200).json({ users: result.rows });
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
+app.get("/data/:id", async (req: Request, res: Response) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query("SELECT * FROM users WHERE id = $1", [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.status(200).json({ user: result.rows[0] });
+  } catch (error) {
+    console.error("Error fetching user:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+// Update
+app.put("/data/:id", async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { name, email } = req.body;
+  try {
+    const result = await pool.query(
+      `UPDATE users SET name = $1, email = $2 WHERE id = $3 RETURNING *`,
+      [name, email, id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.status(200).json({ user: result.rows[0] });
+  } catch (error) {
+    console.error("Error fetching user:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
+// Delete
+app.delete("/data/:id", async (req: Request, res: Response) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(`DELETE FROM users WHERE id = $1`, [id]);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: "User not found" });
+    } else {
+      console.log("Deleted user with id:", id);
+      res
+        .status(200)
+        .json({ message: "User deleted successfully", user: null });
+    }
+  } catch (error) {
+    console.error("Error deleting user:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
 });
 
 app.listen(port, () => {
