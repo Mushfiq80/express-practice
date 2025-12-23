@@ -1,4 +1,4 @@
-import express, { Request, Response } from "express";
+import express, { NextFunction, Request, Response } from "express";
 import { Pool } from "pg";
 import dotenv from "dotenv";
 import path from "path";
@@ -47,7 +47,13 @@ const initDB = async () => {
 
 initDB();
 
-app.get("/", (req: Request, res: Response) => {
+// Logger Middleware 
+const logger = (req: Request, res: Response, next: NextFunction) =>{
+  console.log(`${req.method} ${req.path} - ${new Date().toISOString()}\n`);
+  next();
+}
+
+app.get("/", logger, (req: Request, res: Response) => {
   res.send("Hello World! Next Dev");
 });
 
@@ -134,6 +140,17 @@ app.delete("/data/:id", async (req: Request, res: Response) => {
     console.error("Error deleting user:", error);
     res.status(500).json({ message: "Internal Server Error" });
   }
+});
+
+// TODO CRUD
+app.post("/todos", async (req: Request, res: Response) => {
+  const {} = req.body;
+});
+
+// 404
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: "Route not found", path: req.path });
+
 });
 
 app.listen(port, () => {
